@@ -54,42 +54,6 @@ void generatePrimes(mpz_t prime, gmp_randstate_t state)
 	seed++;
 }
 
-void generateModularPowers(mpz_t m, mpz_t g, mpz_t p)
-{
-	mpz_t *mod_array;
-	mpz_t i, j, k, q;
-	mpz_inits(i, j, k, m, q, NULL);
-    mod_array = (mpz_t *) malloc(q * sizeof(mpz_t));
-    mpz_set_ui(m , 0);
-    mpz_set_ui(i,1);
-	while(mpz_cmp(i, p) < 0);
-	{
-        // k = (g^i)mod p
-        mpz_powm(k, g, i, p);
-        mpz_set_ui(j,0);
-        mpz_sub_ui(q, i, 1);
-        while(mpz_cmp(j,q) < 0)
-		{
-             if(mpz_cmp(k, mod_array[j]) != 0)
-             {
-             	mpz_add_ui(m, m, 1);
-             }
-             else
-             	break;
-             mpz_add_ui(j, j, 1);
-		}
-		if(mpz_cmp(m, q) == 0)
-		{
-			mpz_set(mod_array[q], k);
-			mpz_add_ui(i, i, 1);
-		}
-		else
-		{
-			break;
-		}
-	}
-}
-
 void getGenerator(mpz_t g, gmp_randstate_t state, mpz_t p)
 {
 	mpz_t r, m, q;
@@ -103,41 +67,43 @@ void getGenerator(mpz_t g, gmp_randstate_t state, mpz_t p)
 	    mpz_gcd(r, g, p);
 	    gmp_printf("g-value:\n%Zd\n\n", g);
         gmp_printf("r-value:\n%Zd\n\n", r);
-        if(mpz_cmp_ui(r,1) == 0)
-        {
-        	generateModularPowers(m, g, p);
-        }
-        else
-        {
-        	mpz_set_ui(m, 0);
-        }
-        gmp_printf("m-value:\n%Zd\n\n", m);
-        mpz_sub_ui(q, p , 1);
-	}while((g == 0) || ((mpz_cmp(m,q) < 0)))
+    }while((g == 0) || (mpz_cmp_ui(r,1) != 0));
 }
 
 //Generate a prime number p
-void generatePublicKey(gmp_randstate_t state, mpz_t p, mpz_t g)
+void generatePublicKey(PublicKey* pubkey, gmp_randstate_t state)
 {
-	mpz_inits(p, g, NULL);
-	randomStateInit(state);
 
 	//Generate p
-	generatePrimes(p, state);
-	gmp_printf("p-value:\n%Zd\n\n", p);
 	randomStateInit(state);
+	generatePrimes(pubkey->p, state);
+	gmp_printf("p-value:\n%Zd\n\n", pubkey->p);
 
 	//Generate g
-	getGenerator(g, state, p);
-	gmp_printf("g-value:\n%Zd\n\n", g);
+	randomStateInit(state);
+	getGenerator(pubkey->g, state, pubkey->p);
+	gmp_printf("g-value:\n%Zd\n\n", pubkey->g);
+}
 
+//Generate value of x
+void generatePrivateKey(PrivateKey*privkey, PublicKey* pubkey, gmp_randstate_t state)
+{
+
+	gmp_randclear(state);
+	seed++;
+	randomStateInit(state);
+	mpz_urandomm(privkey->x, state, pubkey->p);
+	gmp_printf("PrivateKey:%Zd\n\n", privkey->x);
 }
 
 //Function to generate the public key and private key
 void keyGeneration(PrivateKey*privKey, PublicKey* pubKey)
 {		
 	gmp_randstate_t state;
-	generatePublicKey(state, p, g);
+	generatePublicKey(pubKey, state);
+	generatePrivateKey(privKey, pubKey, state);
+
+	mpz_powm(pubKey->y, pubKey->g, privKey->x, pubKey->p);
 }
 
 int main()
